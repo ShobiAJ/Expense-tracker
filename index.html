@@ -982,11 +982,11 @@ let catChart = null, personChart = null, dailyChart = null;
 
 // ─── CONFIG (localStorage) ───────────────────────────────────────────────────
 function loadConfig() {
-  state.p1Name = localStorage.getItem('spendly_p1') || 'Person 1';
-  state.p2Name = localStorage.getItem('spendly_p2') || 'Person 2';
-  state.supabaseUrl = localStorage.getItem('spendly_sb_url') || '';
-  state.supabaseKey = localStorage.getItem('spendly_sb_key') || '';
-  state.geminiKey   = localStorage.getItem('spendly_gemini') || '';
+  state.p1Name = localStorage.getItem('spendly_p1') || 'Shobi';
+  state.p2Name = localStorage.getItem('spendly_p2') || 'Ash';
+  state.supabaseUrl = localStorage.getItem('spendly_sb_url') || 'https://frmmomlmnnqelawxupuu.supabase.co';
+  state.supabaseKey = localStorage.getItem('spendly_sb_key') || 'sb_publishable_flj_CPCjqz_3xhn7v3yttg_T1o9NFdC';
+  state.geminiKey   = localStorage.getItem('spendly_gemini') || 'AQ.Ab8RN6JbUudrwdLoyBEn0oeC4jqerYr-9isSDhy25eZXfLQkaQ';
 
   document.getElementById('setting-p1').value = state.p1Name;
   document.getElementById('setting-p2').value = state.p2Name;
