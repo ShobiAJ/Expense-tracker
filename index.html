@@ -3,48 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Expense Tracker Pro</title>
-    <!-- Load Supabase first -->
+    <title>Expense Tracker</title>
+    <!-- Supabase CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --p1-color: #2563eb; --p2-color: #db2777; --bg: #f1f5f9; }
-        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 20px; display: flex; justify-content: center; }
+        :root { --p1: #2563eb; --p2: #db2777; --bg: #f1f5f9; }
+        body { font-family: system-ui, sans-serif; background: var(--bg); margin: 0; padding: 15px; display: flex; justify-content: center; }
         .container { width: 100%; max-width: 450px; }
         
-        header { text-align: center; margin-bottom: 20px; }
-        .user-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
-        .user-tabs button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; background: #cbd5e1; color: #475569; }
-        button.active-p1 { background: var(--p1-color) !important; color: white !important; }
-        button.active-p2 { background: var(--p2-color) !important; color: white !important; }
+        .user-tabs { display: flex; gap: 8px; margin-bottom: 15px; }
+        .user-tabs button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; background: #cbd5e1; }
+        .active-p1 { background: var(--p1) !important; color: white; }
+        .active-p2 { background: var(--p2) !important; color: white; }
 
         .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
         .stat-card { background: white; padding: 15px; border-radius: 12px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .stat-card h3 { margin: 0; font-size: 12px; color: #64748b; text-transform: uppercase; }
+        .stat-card h3 { margin: 0; font-size: 11px; color: #64748b; text-transform: uppercase; }
         .stat-card p { margin: 5px 0 0; font-size: 18px; font-weight: bold; }
 
         .card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .upload-area { border: 2px dashed #94a3b8; padding: 20px; text-align: center; border-radius: 12px; background: #f8fafc; cursor: pointer; margin-bottom: 15px; }
+        .upload-area { border: 2px dashed #94a3b8; padding: 15px; text-align: center; border-radius: 10px; background: #f8fafc; cursor: pointer; margin-bottom: 15px; }
         
         input, select, textarea { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
         .row { display: flex; gap: 10px; }
         .submit-btn { width: 100%; padding: 15px; background: #1e293b; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
         
         .expense-item { background: white; padding: 12px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid #ddd; }
-        .item-info strong { display: block; font-size: 15px; }
-        .item-info small { color: #64748b; font-size: 12px; }
-        .item-amount { font-weight: bold; font-size: 16px; }
+        .item-info strong { display: block; font-size: 14px; }
+        .item-info small { color: #64748b; font-size: 11px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <header>
-        <h1>Tracker</h1>
-        <div class="user-tabs">
-            <button id="p1-tab" onclick="setPerson('p1')">P1</button>
-            <button id="p2-tab" onclick="setPerson('p2')">P2</button>
-        </div>
-    </header>
+    <div class="user-tabs">
+        <button id="p1-tab" onclick="setPerson('p1')">P1</button>
+        <button id="p2-tab" onclick="setPerson('p2')">P2</button>
+    </div>
 
     <div class="stats">
         <div class="stat-card">
@@ -58,8 +53,8 @@
     </div>
 
     <div class="card">
-        <div class="upload-area" id="drop-zone" onclick="document.getElementById('file-input').click()">
-            <span id="ocr-text">📷 Tap to Scan Receipt</span>
+        <div class="upload-area" onclick="document.getElementById('file-input').click()">
+            <span id="ocr-status">📷 Tap to Scan Receipt</span>
             <input type="file" id="file-input" hidden accept="image/*">
         </div>
 
@@ -85,54 +80,41 @@
 </div>
 
 <script>
-    console.log("App Script Started");
-
     const SB_URL = "https://frmmomlmnnqelawxupuu.supabase.co";
     const SB_KEY = "sb_publishable_flj_CPCjqz_3xhn7v3yttg_T1o9NFdC";
     const TAGGUN_KEY = "AQ.Ab8RN6JbUudrwdLoyBEn0oeC4jqerYr-9isSDhy25eZXfLQkaQ";
 
-    let supabase;
+    // Initialize Supabase Client with a unique variable name
+    const sbClient = supabase.createClient(SB_URL, SB_KEY);
+
     let personNames = { p1: "Person 1", p2: "Person 2" };
     let activePerson = "";
     let currentSource = "manual";
 
-    // Initialize App
-    async function init() {
-        try {
-            console.log("Initializing Supabase...");
-            supabase = window.supabase.createClient(SB_URL, SB_KEY);
-            
-            await loadSettings();
-            await fetchExpenses();
-            document.getElementById('date').valueAsDate = new Date();
-            console.log("App Ready");
-        } catch (e) {
-            console.error("Initialization Failed:", e);
-        }
-    }
-
-    async function loadSettings() {
-        console.log("Fetching settings...");
-        const { data, error } = await supabase.from('settings').select('*');
-        
-        if (data && data.length > 0) {
-            const p1 = data.find(r => r.key === 'person1_name')?.value || "Person 1";
-            const p2 = data.find(r => r.key === 'person2_name')?.value || "Person 2";
-            personNames = { p1, p2 };
-        }
-        
-        document.getElementById('p1-tab').innerText = personNames.p1;
-        document.getElementById('p2-tab').innerText = personNames.p2;
-        document.getElementById('p1-label').innerText = personNames.p1;
-        document.getElementById('p2-label').innerText = personNames.p2;
-        setPerson('p1');
-    }
-
-    function setPerson(key) {
+    // Set Person Logic
+    window.setPerson = function(key) {
         activePerson = personNames[key];
         document.getElementById('p1-tab').className = (key === 'p1') ? 'active-p1' : '';
         document.getElementById('p2-tab').className = (key === 'p2') ? 'active-p2' : '';
-        console.log("Active Person:", activePerson);
+    };
+
+    // Load Data
+    async function init() {
+        // 1. Get Names from Settings
+        const { data: settings } = await sbClient.from('settings').select('*');
+        if (settings && settings.length > 0) {
+            personNames.p1 = settings.find(s => s.key === 'person1_name')?.value || "Person 1";
+            personNames.p2 = settings.find(s => s.key === 'person2_name')?.value || "Person 2";
+        }
+        
+        document.getElementById('p1-label').innerText = personNames.p1;
+        document.getElementById('p2-label').innerText = personNames.p2;
+        document.getElementById('p1-tab').innerText = personNames.p1;
+        document.getElementById('p2-tab').innerText = personNames.p2;
+        
+        setPerson('p1');
+        fetchExpenses();
+        document.getElementById('date').valueAsDate = new Date();
     }
 
     // OCR Logic
@@ -140,13 +122,11 @@
         const file = e.target.files[0];
         if (!file) return;
 
-        console.log("File detected, starting OCR...");
-        const statusText = document.getElementById('ocr-text');
-        statusText.innerText = "⏳ Reading Receipt...";
+        const status = document.getElementById('ocr-status');
+        status.innerText = "⏳ Scanning...";
 
         const fd = new FormData();
         fd.append('file', file);
-        fd.append('inc_dupe', 'false');
 
         try {
             const resp = await fetch('https://api.taggun.io/api/receipt/v1/simple/file', {
@@ -155,28 +135,24 @@
                 body: fd
             });
             const data = await resp.json();
-            console.log("OCR Result:", data);
 
             if (data.totalAmount) {
                 document.getElementById('amount').value = data.totalAmount.data;
                 document.getElementById('name').value = data.merchantName?.data || "Receipt Scan";
-                if (data.date?.data) document.getElementById('date').value = data.date.data.split('T')[0];
                 currentSource = "ocr";
-                statusText.innerText = "✅ Done! Check fields below.";
+                status.innerText = "✅ Scan Success";
             } else {
-                statusText.innerText = "⚠️ Failed to read total.";
+                status.innerText = "⚠️ Total not found";
             }
         } catch (err) {
-            console.error("OCR API Error:", err);
-            statusText.innerText = "❌ Scan Error.";
+            status.innerText = "❌ Scan Failed";
         }
     });
 
-    // Form Logic
+    // Save Expense
     document.getElementById('expense-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = document.getElementById('save-btn');
-        btn.innerText = "Saving...";
         btn.disabled = true;
 
         const record = {
@@ -189,33 +165,24 @@
             source: currentSource
         };
 
-        console.log("Sending to Supabase:", record);
-
-        const { error } = await supabase.from('expenses').insert([record]);
+        const { error } = await sbClient.from('expenses').insert([record]);
 
         if (error) {
-            console.error("Supabase Insert Error:", error);
-            alert("Save failed: " + error.message);
+            alert(error.message);
         } else {
-            console.log("Save Successful");
             document.getElementById('expense-form').reset();
             document.getElementById('date').valueAsDate = new Date();
-            document.getElementById('ocr-text').innerText = "📷 Tap to Scan Receipt";
             currentSource = "manual";
-            await fetchExpenses();
+            document.getElementById('ocr-status').innerText = "📷 Tap to Scan Receipt";
+            fetchExpenses();
         }
-        btn.innerText = "Save Expense";
         btn.disabled = false;
     });
 
+    // Refresh List
     async function fetchExpenses() {
-        console.log("Refreshing list...");
-        const { data, error } = await supabase.from('expenses').select('*').order('date', { ascending: false });
-
-        if (error) {
-            console.error("Fetch Error:", error);
-            return;
-        }
+        const { data, error } = await sbClient.from('expenses').select('*').order('date', { ascending: false });
+        if (error) return;
 
         const listDiv = document.getElementById('list');
         listDiv.innerHTML = "";
@@ -227,13 +194,13 @@
 
             const div = document.createElement('div');
             div.className = 'expense-item';
-            div.style.borderLeftColor = isP1 ? 'var(--p1-color)' : 'var(--p2-color)';
+            div.style.borderLeftColor = isP1 ? 'var(--p1)' : 'var(--p2)';
             div.innerHTML = `
                 <div class="item-info">
-                    <strong>${item.name} <small>(${item.source})</small></strong>
-                    <small>${item.date} • ${item.person} • ${item.category}</small>
+                    <strong>${item.name}</strong>
+                    <small>${item.date} • ${item.person} • ${item.source}</small>
                 </div>
-                <div class="item-amount">$${parseFloat(item.amount).toFixed(2)}</div>
+                <div style="font-weight:bold">$${parseFloat(item.amount).toFixed(2)}</div>
             `;
             listDiv.appendChild(div);
         });
@@ -242,7 +209,6 @@
         document.getElementById('p2-total').innerText = `$${t2.toFixed(2)}`;
     }
 
-    // Start
     init();
 </script>
 
