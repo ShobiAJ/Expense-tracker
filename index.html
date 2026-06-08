@@ -3,252 +3,147 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Expense Tracker</title>
-    <!-- Supabase Library -->
+    <title>Expense Tracker Pro</title>
+    <!-- Load Supabase first -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root {
-            --primary: #2563eb;
-            --secondary: #db2777;
-            --bg: #f8fafc;
-            --text: #1e293b;
-        }
+        :root { --p1-color: #2563eb; --p2-color: #db2777; --bg: #f1f5f9; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 450px; }
+        
+        header { text-align: center; margin-bottom: 20px; }
+        .user-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .user-tabs button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; background: #cbd5e1; color: #475569; }
+        button.active-p1 { background: var(--p1-color) !important; color: white !important; }
+        button.active-p2 { background: var(--p2-color) !important; color: white !important; }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-        }
+        .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 15px; border-radius: 12px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .stat-card h3 { margin: 0; font-size: 12px; color: #64748b; text-transform: uppercase; }
+        .stat-card p { margin: 5px 0 0; font-size: 18px; font-weight: bold; }
 
-        .container {
-            width: 100%;
-            max-width: 480px;
-        }
-
-        header {
-            text-align: center;
-            margin-bottom: 24px;
-        }
-
-        /* Person Switcher */
-        .user-tabs {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-        }
-
-        .user-tabs button {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            border-radius: 10px;
-            font-weight: bold;
-            cursor: pointer;
-            background: #e2e8f0;
-            transition: all 0.3s;
-        }
-
-        .user-tabs button.active-p1 { background: var(--primary); color: white; }
-        .user-tabs button.active-p2 { background: var(--secondary); color: white; }
-
-        /* Stats Cards */
-        .stats {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 24px;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 15px;
-            border-radius: 12px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            text-align: center;
-        }
-
-        .stat-card h3 { margin: 0; font-size: 13px; color: #64748b; text-transform: uppercase; }
-        .stat-card p { margin: 8px 0 0; font-size: 20px; font-weight: 800; }
-
-        /* Form Area */
-        .card {
-            background: white;
-            padding: 20px;
-            border-radius: 16px;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-            margin-bottom: 24px;
-        }
-
-        .upload-area {
-            border: 2px dashed #cbd5e1;
-            padding: 20px;
-            text-align: center;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            background: #f1f5f9;
-            cursor: pointer;
-        }
-
-        #ocr-status { font-size: 12px; margin-top: 8px; color: var(--primary); }
-
-        input, select, textarea {
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 12px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            box-sizing: border-box;
-            font-size: 16px;
-        }
-
+        .card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .upload-area { border: 2px dashed #94a3b8; padding: 20px; text-align: center; border-radius: 12px; background: #f8fafc; cursor: pointer; margin-bottom: 15px; }
+        
+        input, select, textarea { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
         .row { display: flex; gap: 10px; }
-
-        button.submit-btn {
-            width: 100%;
-            padding: 15px;
-            background: #0f172a;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        button.submit-btn:disabled { opacity: 0.5; }
-
-        /* List Area */
-        .history-item {
-            background: white;
-            padding: 15px;
-            border-radius: 12px;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-left: 5px solid #ddd;
-        }
-
-        .item-main strong { display: block; font-size: 16px; }
-        .item-main span { font-size: 12px; color: #64748b; }
-        .amount-tag { font-weight: 800; font-size: 18px; }
-
-        .tag {
-            font-size: 10px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            background: #f1f5f9;
-            margin-left: 5px;
-        }
+        .submit-btn { width: 100%; padding: 15px; background: #1e293b; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        
+        .expense-item { background: white; padding: 12px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid #ddd; }
+        .item-info strong { display: block; font-size: 15px; }
+        .item-info small { color: #64748b; font-size: 12px; }
+        .item-amount { font-weight: bold; font-size: 16px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <header>
-        <h1>Expense Tracker</h1>
+        <h1>Tracker</h1>
         <div class="user-tabs">
-            <button id="p1-tab" onclick="setPerson('p1')">Loading...</button>
-            <button id="p2-tab" onclick="setPerson('p2')">Loading...</button>
+            <button id="p1-tab" onclick="setPerson('p1')">P1</button>
+            <button id="p2-tab" onclick="setPerson('p2')">P2</button>
         </div>
     </header>
 
     <div class="stats">
         <div class="stat-card">
-            <h3 id="p1-name-label">Person 1</h3>
+            <h3 id="p1-label">Person 1</h3>
             <p id="p1-total">$0.00</p>
         </div>
         <div class="stat-card">
-            <h3 id="p2-name-label">Person 2</h3>
+            <h3 id="p2-label">Person 2</h3>
             <p id="p2-total">$0.00</p>
         </div>
     </div>
 
     <div class="card">
-        <div class="upload-area" onclick="document.getElementById('file-input').click()">
-            <strong>📷 Scan Bill / Receipt</strong>
+        <div class="upload-area" id="drop-zone" onclick="document.getElementById('file-input').click()">
+            <span id="ocr-text">📷 Tap to Scan Receipt</span>
             <input type="file" id="file-input" hidden accept="image/*">
-            <div id="ocr-status">Click to upload image</div>
         </div>
 
         <form id="expense-form">
-            <input type="text" id="name" placeholder="What was this for?" required>
+            <input type="text" id="name" placeholder="Expense Name" required>
             <div class="row">
-                <input type="number" id="amount" step="0.01" placeholder="Amount" required>
+                <input type="number" id="amount" step="0.01" placeholder="0.00" required>
                 <select id="category">
                     <option value="Food">Food</option>
-                    <option value="Transport">Transport</option>
                     <option value="Groceries">Groceries</option>
+                    <option value="Transport">Transport</option>
                     <option value="Bills">Bills</option>
-                    <option value="Entertainment">Entertainment</option>
                     <option value="Other">Other</option>
                 </select>
             </div>
             <input type="date" id="date" required>
-            <textarea id="notes" placeholder="Notes (optional)" rows="2"></textarea>
+            <textarea id="notes" placeholder="Notes (Optional)"></textarea>
             <button type="submit" class="submit-btn" id="save-btn">Save Expense</button>
         </form>
     </div>
 
-    <div id="history-list">
-        <!-- Expenses will appear here -->
-    </div>
+    <div id="list"></div>
 </div>
 
 <script>
-    // Config
+    console.log("App Script Started");
+
     const SB_URL = "https://frmmomlmnnqelawxupuu.supabase.co";
     const SB_KEY = "sb_publishable_flj_CPCjqz_3xhn7v3yttg_T1o9NFdC";
     const TAGGUN_KEY = "AQ.Ab8RN6JbUudrwdLoyBEn0oeC4jqerYr-9isSDhy25eZXfLQkaQ";
 
-    const supabase = window.supabase.createClient(SB_URL, SB_KEY);
-
+    let supabase;
     let personNames = { p1: "Person 1", p2: "Person 2" };
     let activePerson = "";
     let currentSource = "manual";
 
-    // Init
-    window.onload = async () => {
-        await loadSettings();
-        fetchExpenses();
-        document.getElementById('date').valueAsDate = new Date();
-    };
+    // Initialize App
+    async function init() {
+        try {
+            console.log("Initializing Supabase...");
+            supabase = window.supabase.createClient(SB_URL, SB_KEY);
+            
+            await loadSettings();
+            await fetchExpenses();
+            document.getElementById('date').valueAsDate = new Date();
+            console.log("App Ready");
+        } catch (e) {
+            console.error("Initialization Failed:", e);
+        }
+    }
 
-    // 1. Load Custom Names from Settings Table
     async function loadSettings() {
+        console.log("Fetching settings...");
         const { data, error } = await supabase.from('settings').select('*');
-        if (data) {
+        
+        if (data && data.length > 0) {
             const p1 = data.find(r => r.key === 'person1_name')?.value || "Person 1";
             const p2 = data.find(r => r.key === 'person2_name')?.value || "Person 2";
             personNames = { p1, p2 };
-            
-            document.getElementById('p1-tab').innerText = p1;
-            document.getElementById('p2-tab').innerText = p2;
-            document.getElementById('p1-name-label').innerText = p1;
-            document.getElementById('p2-name-label').innerText = p2;
-            
-            setPerson('p1'); // Default to P1
         }
+        
+        document.getElementById('p1-tab').innerText = personNames.p1;
+        document.getElementById('p2-tab').innerText = personNames.p2;
+        document.getElementById('p1-label').innerText = personNames.p1;
+        document.getElementById('p2-label').innerText = personNames.p2;
+        setPerson('p1');
     }
 
     function setPerson(key) {
         activePerson = personNames[key];
         document.getElementById('p1-tab').className = (key === 'p1') ? 'active-p1' : '';
         document.getElementById('p2-tab').className = (key === 'p2') ? 'active-p2' : '';
+        console.log("Active Person:", activePerson);
     }
 
-    // 2. OCR Logic
+    // OCR Logic
     document.getElementById('file-input').addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        const status = document.getElementById('ocr-status');
-        status.innerText = "⏳ Processing receipt...";
-        
+        console.log("File detected, starting OCR...");
+        const statusText = document.getElementById('ocr-text');
+        statusText.innerText = "⏳ Reading Receipt...";
+
         const fd = new FormData();
         fd.append('file', file);
         fd.append('inc_dupe', 'false');
@@ -260,27 +155,28 @@
                 body: fd
             });
             const data = await resp.json();
+            console.log("OCR Result:", data);
 
             if (data.totalAmount) {
                 document.getElementById('amount').value = data.totalAmount.data;
                 document.getElementById('name').value = data.merchantName?.data || "Receipt Scan";
-                if (data.date?.data) {
-                    document.getElementById('date').value = data.date.data.split('T')[0];
-                }
+                if (data.date?.data) document.getElementById('date').value = data.date.data.split('T')[0];
                 currentSource = "ocr";
-                status.innerText = "✅ Scan successful!";
+                statusText.innerText = "✅ Done! Check fields below.";
             } else {
-                status.innerText = "❌ Could not read total. Enter manually.";
+                statusText.innerText = "⚠️ Failed to read total.";
             }
         } catch (err) {
-            status.innerText = "❌ Scan failed.";
+            console.error("OCR API Error:", err);
+            statusText.innerText = "❌ Scan Error.";
         }
     });
 
-    // 3. Save Expense
+    // Form Logic
     document.getElementById('expense-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = document.getElementById('save-btn');
+        btn.innerText = "Saving...";
         btn.disabled = true;
 
         const record = {
@@ -293,46 +189,62 @@
             source: currentSource
         };
 
+        console.log("Sending to Supabase:", record);
+
         const { error } = await supabase.from('expenses').insert([record]);
 
         if (error) {
-            alert("Error: " + error.message);
+            console.error("Supabase Insert Error:", error);
+            alert("Save failed: " + error.message);
         } else {
+            console.log("Save Successful");
             document.getElementById('expense-form').reset();
             document.getElementById('date').valueAsDate = new Date();
-            document.getElementById('ocr-status').innerText = "Click to upload image";
+            document.getElementById('ocr-text').innerText = "📷 Tap to Scan Receipt";
             currentSource = "manual";
-            fetchExpenses();
+            await fetchExpenses();
         }
+        btn.innerText = "Save Expense";
         btn.disabled = false;
     });
 
-    // 4. Fetch and Render
     async function fetchExpenses() {
-        const { data, error } = await supabase
-            .from('expenses')
-            .select('*')
-            .order('date', { ascending: false });
+        console.log("Refreshing list...");
+        const { data, error } = await supabase.from('expenses').select('*').order('date', { ascending: false });
 
-        if (error) return;
+        if (error) {
+            console.error("Fetch Error:", error);
+            return;
+        }
 
-        const listDiv = document.getElementById('history-list');
+        const listDiv = document.getElementById('list');
         listDiv.innerHTML = "";
-        
-        let sum1 = 0;
-        let sum2 = 0;
+        let t1 = 0, t2 = 0;
 
         data.forEach(item => {
-            // Calculate totals
-            if (item.person === personNames.p1) sum1 += parseFloat(item.amount);
-            else sum2 += parseFloat(item.amount);
+            const isP1 = item.person === personNames.p1;
+            if (isP1) t1 += parseFloat(item.amount); else t2 += parseFloat(item.amount);
 
-            // Render row
-            const card = document.createElement('div');
-            card.className = 'history-item';
-            card.style.borderLeftColor = (item.person === personNames.p1) ? varName('--primary') : varName('--secondary');
-            
-            card.innerHTML = `
-                <div class="item-main">
-                    <strong>${item.name} <span class="tag">${item.source}</span></strong>
-                    <span>${item.date} • ${item.person} • ${item.category}</span>
+            const div = document.createElement('div');
+            div.className = 'expense-item';
+            div.style.borderLeftColor = isP1 ? 'var(--p1-color)' : 'var(--p2-color)';
+            div.innerHTML = `
+                <div class="item-info">
+                    <strong>${item.name} <small>(${item.source})</small></strong>
+                    <small>${item.date} • ${item.person} • ${item.category}</small>
+                </div>
+                <div class="item-amount">$${parseFloat(item.amount).toFixed(2)}</div>
+            `;
+            listDiv.appendChild(div);
+        });
+
+        document.getElementById('p1-total').innerText = `$${t1.toFixed(2)}`;
+        document.getElementById('p2-total').innerText = `$${t2.toFixed(2)}`;
+    }
+
+    // Start
+    init();
+</script>
+
+</body>
+</html>
