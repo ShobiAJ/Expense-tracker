@@ -4,15 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Expense Tracker</title>
-    <!-- Supabase CDN -->
+    <!-- Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         :root { --p1: #2563eb; --p2: #db2777; --bg: #f1f5f9; }
         body { font-family: system-ui, sans-serif; background: var(--bg); margin: 0; padding: 15px; display: flex; justify-content: center; }
         .container { width: 100%; max-width: 450px; }
         
         .user-tabs { display: flex; gap: 8px; margin-bottom: 15px; }
-        .user-tabs button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; background: #cbd5e1; }
+        .user-tabs button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; background: #cbd5e1; transition: 0.3s; }
         .active-p1 { background: var(--p1) !important; color: white; }
         .active-p2 { background: var(--p2) !important; color: white; }
 
@@ -27,8 +28,10 @@
         input, select, textarea { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
         .row { display: flex; gap: 10px; }
         .submit-btn { width: 100%; padding: 15px; background: #1e293b; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .submit-btn:disabled { background: #94a3b8; }
         
-        .expense-item { background: white; padding: 12px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid #ddd; }
+        .expense-item { background: white; padding: 12px; border-radius: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid #ddd; animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .item-info strong { display: block; font-size: 14px; }
         .item-info small { color: #64748b; font-size: 11px; }
     </style>
@@ -54,12 +57,12 @@
 
     <div class="card">
         <div class="upload-area" onclick="document.getElementById('file-input').click()">
-            <span id="ocr-status">📷 Tap to Scan Receipt</span>
+            <span id="ocr-status">📷 Tap to Scan Receipt (Offline OCR)</span>
             <input type="file" id="file-input" hidden accept="image/*">
         </div>
 
         <form id="expense-form">
-            <input type="text" id="name" placeholder="Expense Name" required>
+            <input type="text" id="name" placeholder="Expense Name (e.g. Starbucks)" required>
             <div class="row">
                 <input type="number" id="amount" step="0.01" placeholder="0.00" required>
                 <select id="category">
@@ -80,27 +83,24 @@
 </div>
 
 <script>
+    // Supabase Config
     const SB_URL = "https://frmmomlmnnqelawxupuu.supabase.co";
     const SB_KEY = "sb_publishable_flj_CPCjqz_3xhn7v3yttg_T1o9NFdC";
-    const TAGGUN_KEY = "AQ.Ab8RN6JbUudrwdLoyBEn0oeC4jqerYr-9isSDhy25eZXfLQkaQ";
-
-    // Initialize Supabase Client with a unique variable name
     const sbClient = supabase.createClient(SB_URL, SB_KEY);
 
     let personNames = { p1: "Person 1", p2: "Person 2" };
     let activePerson = "";
     let currentSource = "manual";
 
-    // Set Person Logic
+    // Set Person
     window.setPerson = function(key) {
         activePerson = personNames[key];
         document.getElementById('p1-tab').className = (key === 'p1') ? 'active-p1' : '';
         document.getElementById('p2-tab').className = (key === 'p2') ? 'active-p2' : '';
     };
 
-    // Load Data
+    // App Initialization
     async function init() {
-        // 1. Get Names from Settings
         const { data: settings } = await sbClient.from('settings').select('*');
         if (settings && settings.length > 0) {
             personNames.p1 = settings.find(s => s.key === 'person1_name')?.value || "Person 1";
@@ -117,39 +117,45 @@
         document.getElementById('date').valueAsDate = new Date();
     }
 
-    // OCR Logic
+    // NEW OCR Logic using Tesseract.js (Offline/Free)
     document.getElementById('file-input').addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
         const status = document.getElementById('ocr-status');
-        status.innerText = "⏳ Scanning...";
-
-        const fd = new FormData();
-        fd.append('file', file);
+        status.innerText = "⏳ Processing (may take 5-10s)...";
 
         try {
-            const resp = await fetch('https://api.taggun.io/api/receipt/v1/simple/file', {
-                method: 'POST',
-                headers: { 'apikey': TAGGUN_KEY },
-                body: fd
-            });
-            const data = await resp.json();
+            const worker = await Tesseract.createWorker('eng');
+            const ret = await worker.recognize(file);
+            const text = ret.data.text;
+            await worker.terminate();
 
-            if (data.totalAmount) {
-                document.getElementById('amount').value = data.totalAmount.data;
-                document.getElementById('name').value = data.merchantName?.data || "Receipt Scan";
-                currentSource = "ocr";
-                status.innerText = "✅ Scan Success";
+            console.log("OCR Text Extracted:", text);
+
+            // Logic to find the Total amount (looks for the largest decimal number)
+            const matches = text.match(/\d+\.\d{2}/g);
+            if (matches) {
+                const amounts = matches.map(Number);
+                const total = Math.max(...amounts);
+                document.getElementById('amount').value = total.toFixed(2);
+                status.innerText = "✅ Total found: $" + total;
             } else {
-                status.innerText = "⚠️ Total not found";
+                status.innerText = "⚠️ Text read, but total not found.";
             }
+            
+            currentSource = "ocr";
+            // Suggest first line as name if short
+            const lines = text.split('\n').filter(l => l.trim().length > 2);
+            if (lines.length > 0) document.getElementById('name').value = lines[0].substring(0, 20);
+
         } catch (err) {
-            status.innerText = "❌ Scan Failed";
+            console.error(err);
+            status.innerText = "❌ Scan Failed.";
         }
     });
 
-    // Save Expense
+    // Save Data
     document.getElementById('expense-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = document.getElementById('save-btn');
@@ -168,18 +174,18 @@
         const { error } = await sbClient.from('expenses').insert([record]);
 
         if (error) {
-            alert(error.message);
+            alert("Error: " + error.message);
         } else {
             document.getElementById('expense-form').reset();
             document.getElementById('date').valueAsDate = new Date();
             currentSource = "manual";
-            document.getElementById('ocr-status').innerText = "📷 Tap to Scan Receipt";
+            document.getElementById('ocr-status').innerText = "📷 Tap to Scan Receipt (Offline OCR)";
             fetchExpenses();
         }
         btn.disabled = false;
     });
 
-    // Refresh List
+    // Fetch List
     async function fetchExpenses() {
         const { data, error } = await sbClient.from('expenses').select('*').order('date', { ascending: false });
         if (error) return;
@@ -198,7 +204,7 @@
             div.innerHTML = `
                 <div class="item-info">
                     <strong>${item.name}</strong>
-                    <small>${item.date} • ${item.person} • ${item.source}</small>
+                    <small>${item.date} • ${item.person} • ${item.category} (${item.source})</small>
                 </div>
                 <div style="font-weight:bold">$${parseFloat(item.amount).toFixed(2)}</div>
             `;
