@@ -4,62 +4,335 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Expense Tracker</title>
-    <link rel="stylesheet" href="style.css">
+    <!-- Supabase Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --secondary: #db2777;
+            --bg: #f8fafc;
+            --text: #1e293b;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        /* Person Switcher */
+        .user-tabs {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .user-tabs button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            background: #e2e8f0;
+            transition: all 0.3s;
+        }
+
+        .user-tabs button.active-p1 { background: var(--primary); color: white; }
+        .user-tabs button.active-p2 { background: var(--secondary); color: white; }
+
+        /* Stats Cards */
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+
+        .stat-card h3 { margin: 0; font-size: 13px; color: #64748b; text-transform: uppercase; }
+        .stat-card p { margin: 8px 0 0; font-size: 20px; font-weight: 800; }
+
+        /* Form Area */
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+        }
+
+        .upload-area {
+            border: 2px dashed #cbd5e1;
+            padding: 20px;
+            text-align: center;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            background: #f1f5f9;
+            cursor: pointer;
+        }
+
+        #ocr-status { font-size: 12px; margin-top: 8px; color: var(--primary); }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+
+        .row { display: flex; gap: 10px; }
+
+        button.submit-btn {
+            width: 100%;
+            padding: 15px;
+            background: #0f172a;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button.submit-btn:disabled { opacity: 0.5; }
+
+        /* List Area */
+        .history-item {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 5px solid #ddd;
+        }
+
+        .item-main strong { display: block; font-size: 16px; }
+        .item-main span { font-size: 12px; color: #64748b; }
+        .amount-tag { font-weight: 800; font-size: 18px; }
+
+        .tag {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: #f1f5f9;
+            margin-left: 5px;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Expense Tracker</h1>
-            <div class="user-selector" id="user-tabs">
-                <button id="p1-btn" class="active" onclick="setUser('p1')">Loading...</button>
-                <button id="p2-btn" onclick="setUser('p2')">Loading...</button>
-            </div>
-        </header>
 
-        <section class="stats">
-            <div class="stat-card">
-                <h3 id="p1-label">Person 1</h3>
-                <p id="total-p1">$0.00</p>
-            </div>
-            <div class="stat-card">
-                <h3 id="p2-label">Person 2</h3>
-                <p id="total-p2">$0.00</p>
-            </div>
-        </section>
+<div class="container">
+    <header>
+        <h1>Expense Tracker</h1>
+        <div class="user-tabs">
+            <button id="p1-tab" onclick="setPerson('p1')">Loading...</button>
+            <button id="p2-tab" onclick="setPerson('p2')">Loading...</button>
+        </div>
+    </header>
 
-        <section class="input-section">
-            <div class="upload-box">
-                <label for="bill-upload" class="custom-file-upload">
-                    <span>📷 Scan Receipt</span>
-                </label>
-                <input type="file" id="bill-upload" accept="image/*">
-                <p id="ocr-status"></p>
-            </div>
-
-            <form id="expense-form">
-                <input type="text" id="exp-name" placeholder="Expense Name (e.g. Grocery)" required>
-                <div class="row">
-                    <input type="number" id="exp-amount" step="0.01" placeholder="Amount" required style="width: 60%;">
-                    <select id="exp-category" style="width: 35%;">
-                        <option value="Food">Food</option>
-                        <option value="Transport">Transport</option>
-                        <option value="Bills">Bills</option>
-                        <option value="Health">Health</option>
-                        <option value="Other">Other</option>
-                    </select>
-                </div>
-                <input type="date" id="exp-date" required>
-                <textarea id="exp-notes" placeholder="Notes (Optional)"></textarea>
-                <button type="submit" id="save-btn">Record Expense</button>
-            </form>
-        </section>
-
-        <section class="history">
-            <h2>Recent History</h2>
-            <div id="expense-list"></div>
-        </section>
+    <div class="stats">
+        <div class="stat-card">
+            <h3 id="p1-name-label">Person 1</h3>
+            <p id="p1-total">$0.00</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="p2-name-label">Person 2</h3>
+            <p id="p2-total">$0.00</p>
+        </div>
     </div>
-    <script src="app.js"></script>
-</body>
-</html>
+
+    <div class="card">
+        <div class="upload-area" onclick="document.getElementById('file-input').click()">
+            <strong>📷 Scan Bill / Receipt</strong>
+            <input type="file" id="file-input" hidden accept="image/*">
+            <div id="ocr-status">Click to upload image</div>
+        </div>
+
+        <form id="expense-form">
+            <input type="text" id="name" placeholder="What was this for?" required>
+            <div class="row">
+                <input type="number" id="amount" step="0.01" placeholder="Amount" required>
+                <select id="category">
+                    <option value="Food">Food</option>
+                    <option value="Transport">Transport</option>
+                    <option value="Groceries">Groceries</option>
+                    <option value="Bills">Bills</option>
+                    <option value="Entertainment">Entertainment</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <input type="date" id="date" required>
+            <textarea id="notes" placeholder="Notes (optional)" rows="2"></textarea>
+            <button type="submit" class="submit-btn" id="save-btn">Save Expense</button>
+        </form>
+    </div>
+
+    <div id="history-list">
+        <!-- Expenses will appear here -->
+    </div>
+</div>
+
+<script>
+    // Config
+    const SB_URL = "https://frmmomlmnnqelawxupuu.supabase.co";
+    const SB_KEY = "sb_publishable_flj_CPCjqz_3xhn7v3yttg_T1o9NFdC";
+    const TAGGUN_KEY = "AQ.Ab8RN6JbUudrwdLoyBEn0oeC4jqerYr-9isSDhy25eZXfLQkaQ";
+
+    const supabase = window.supabase.createClient(SB_URL, SB_KEY);
+
+    let personNames = { p1: "Person 1", p2: "Person 2" };
+    let activePerson = "";
+    let currentSource = "manual";
+
+    // Init
+    window.onload = async () => {
+        await loadSettings();
+        fetchExpenses();
+        document.getElementById('date').valueAsDate = new Date();
+    };
+
+    // 1. Load Custom Names from Settings Table
+    async function loadSettings() {
+        const { data, error } = await supabase.from('settings').select('*');
+        if (data) {
+            const p1 = data.find(r => r.key === 'person1_name')?.value || "Person 1";
+            const p2 = data.find(r => r.key === 'person2_name')?.value || "Person 2";
+            personNames = { p1, p2 };
+            
+            document.getElementById('p1-tab').innerText = p1;
+            document.getElementById('p2-tab').innerText = p2;
+            document.getElementById('p1-name-label').innerText = p1;
+            document.getElementById('p2-name-label').innerText = p2;
+            
+            setPerson('p1'); // Default to P1
+        }
+    }
+
+    function setPerson(key) {
+        activePerson = personNames[key];
+        document.getElementById('p1-tab').className = (key === 'p1') ? 'active-p1' : '';
+        document.getElementById('p2-tab').className = (key === 'p2') ? 'active-p2' : '';
+    }
+
+    // 2. OCR Logic
+    document.getElementById('file-input').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const status = document.getElementById('ocr-status');
+        status.innerText = "⏳ Processing receipt...";
+        
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('inc_dupe', 'false');
+
+        try {
+            const resp = await fetch('https://api.taggun.io/api/receipt/v1/simple/file', {
+                method: 'POST',
+                headers: { 'apikey': TAGGUN_KEY },
+                body: fd
+            });
+            const data = await resp.json();
+
+            if (data.totalAmount) {
+                document.getElementById('amount').value = data.totalAmount.data;
+                document.getElementById('name').value = data.merchantName?.data || "Receipt Scan";
+                if (data.date?.data) {
+                    document.getElementById('date').value = data.date.data.split('T')[0];
+                }
+                currentSource = "ocr";
+                status.innerText = "✅ Scan successful!";
+            } else {
+                status.innerText = "❌ Could not read total. Enter manually.";
+            }
+        } catch (err) {
+            status.innerText = "❌ Scan failed.";
+        }
+    });
+
+    // 3. Save Expense
+    document.getElementById('expense-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('save-btn');
+        btn.disabled = true;
+
+        const record = {
+            name: document.getElementById('name').value,
+            amount: parseFloat(document.getElementById('amount').value),
+            category: document.getElementById('category').value,
+            date: document.getElementById('date').value,
+            notes: document.getElementById('notes').value,
+            person: activePerson,
+            source: currentSource
+        };
+
+        const { error } = await supabase.from('expenses').insert([record]);
+
+        if (error) {
+            alert("Error: " + error.message);
+        } else {
+            document.getElementById('expense-form').reset();
+            document.getElementById('date').valueAsDate = new Date();
+            document.getElementById('ocr-status').innerText = "Click to upload image";
+            currentSource = "manual";
+            fetchExpenses();
+        }
+        btn.disabled = false;
+    });
+
+    // 4. Fetch and Render
+    async function fetchExpenses() {
+        const { data, error } = await supabase
+            .from('expenses')
+            .select('*')
+            .order('date', { ascending: false });
+
+        if (error) return;
+
+        const listDiv = document.getElementById('history-list');
+        listDiv.innerHTML = "";
+        
+        let sum1 = 0;
+        let sum2 = 0;
+
+        data.forEach(item => {
+            // Calculate totals
+            if (item.person === personNames.p1) sum1 += parseFloat(item.amount);
+            else sum2 += parseFloat(item.amount);
+
+            // Render row
+            const card = document.createElement('div');
+            card.className = 'history-item';
+            card.style.borderLeftColor = (item.person === personNames.p1) ? varName('--primary') : varName('--secondary');
+            
+            card.innerHTML = `
+                <div class="item-main">
+                    <strong>${item.name} <span class="tag">${item.source}</span></strong>
+                    <span>${item.date} • ${item.person} • ${item.category}</span>
